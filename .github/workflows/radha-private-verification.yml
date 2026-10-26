@@ -193,6 +193,13 @@ jobs:
             exit 1
           fi
           selected="${indexed_tests[90]}"
+          expected_digest="61179129c81368cea252fbb30814e810d695b39673d8c63e9546d95532358052"
+          observed_digest="$(printf '%s' "$selected" | sha256sum | cut -d' ' -f1)"
+          if [[ "$observed_digest" != "$expected_digest" ]]; then
+            echo 'RADHA_TEST_91_IDENTITY=MISMATCH'
+            exit 1
+          fi
+          echo 'RADHA_TEST_91_IDENTITY=match'
           for attempt in $(seq 1 12); do
             if cargo +1.98.1 test --workspace --all-targets --locked "$selected" > "$RUNNER_TEMP/radha-repro.log" 2>&1; then
               :
