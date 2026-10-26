@@ -155,6 +155,8 @@ jobs:
             echo 'RADHA_CLIPPY=PASS'
           else
             echo 'RADHA_CLIPPY=FAIL'
+            grep -Eo 'clippy::[a-z_]+' "$RUNNER_TEMP/radha-clippy.log" | LC_ALL=C sort -u | sed 's/^/RADHA_LINT_CODE=/' || true
+            grep -Eo 'error\[[A-Z][0-9]+\]' "$RUNNER_TEMP/radha-clippy.log" | LC_ALL=C sort -u | sed 's/^/RADHA_COMPILER_CODE=/' || true
             exit 1
           fi
 
