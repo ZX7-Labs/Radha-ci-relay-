@@ -141,9 +141,10 @@ jobs:
           set -euo pipefail
           if cargo +1.98.1 test --workspace --all-targets --locked > "$RUNNER_TEMP/radha-test.log" 2>&1; then
             echo 'RADHA_TESTS=PASS'
+            echo 'RADHA_TESTS_OK=1' >> "$GITHUB_ENV"
           else
             echo 'RADHA_TESTS=FAIL'
-            exit 1
+            echo 'RADHA_TESTS_OK=0' >> "$GITHUB_ENV"
           fi
 
       - name: Check all-target Clippy with warnings denied
@@ -153,19 +154,20 @@ jobs:
           set -euo pipefail
           if cargo +1.98.1 clippy --workspace --all-targets --locked -- -D warnings > "$RUNNER_TEMP/radha-clippy.log" 2>&1; then
             echo 'RADHA_CLIPPY=PASS'
+            echo 'RADHA_CLIPPY_OK=1' >> "$GITHUB_ENV"
           else
             echo 'RADHA_CLIPPY=FAIL'
             grep -Eo 'clippy::[a-z_]+' "$RUNNER_TEMP/radha-clippy.log" | LC_ALL=C sort -u | sed 's/^/RADHA_LINT_CODE=/' || true
             grep -Eo 'error\[[A-Z][0-9]+\]' "$RUNNER_TEMP/radha-clippy.log" | LC_ALL=C sort -u | sed 's/^/RADHA_COMPILER_CODE=/' || true
-            exit 1
+            echo 'RADHA_CLIPPY_OK=0' >> "$GITHUB_ENV"
           fi
 
       - name: Mark exact private revision verified
         shell: bash
         run: |
           set -euo pipefail
-          if [[ "${RADHA_FORMAT_OK:-0}" != "1" ]]; then
-            echo 'RADHA_VERIFY_RESULT=FAIL_FORMAT'
+          if [[ "${RADHA_FORMAT_OK:-0}" != "1" || "${RADHA_TESTS_OK:-0}" != "1" || "${RADHA_CLIPPY_OK:-0}" != "1" ]]; then
+            echo 'RADHA_VERIFY_RESULT=FAIL_GATES'
             exit 1
           fi
           digest="$(printf '%s' "$TARGET_SHA" | sha256sum | cut -d' ' -f1)"
