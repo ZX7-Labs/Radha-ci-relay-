@@ -212,6 +212,30 @@ jobs:
           done
           echo 'RADHA_TEST_STRESS=PASS_12'
 
+      - name: Stress test recovery-supervision suite by numeric ordinal
+        working-directory: source/invent_radha
+        shell: bash
+        run: |
+          set -euo pipefail
+          suite_entry="$(awk '/^[[:space:]]*Running / { suite++; if (suite == 21) { print $2; exit; } }' "$RUNNER_TEMP/radha-test-list.log")"
+          if [[ ! "$suite_entry" =~ ^tests/[a-zA-Z0-9_]+[.]rs$ ]]; then
+            echo 'RADHA_SUITE_TARGET=INVALID'
+            exit 1
+          fi
+          suite_name="${suite_entry#tests/}"
+          suite_name="${suite_name%.rs}"
+          for attempt in $(seq 1 25); do
+            if cargo +1.98.1 test -p cradle --test "$suite_name" --locked > "$RUNNER_TEMP/radha-target-suite.log" 2>&1; then
+              :
+            else
+              echo 'RADHA_SUPERVISOR_SUITE_STRESS=FAIL'
+              echo "RADHA_SUPERVISOR_SUITE_ATTEMPT=$attempt"
+              sed -nE '/panicked at / {s/^.*:([0-9]+):([0-9]+):?$/RADHA_PANIC_LOCATION=\1:\2/p;}' "$RUNNER_TEMP/radha-target-suite.log" | head -3 || true
+              exit 1
+            fi
+          done
+          echo 'RADHA_SUPERVISOR_SUITE_STRESS=PASS_25'
+
       - name: Repeat complete workspace tests to detect intermittent failures
         working-directory: source/invent_radha
         shell: bash
@@ -273,5 +297,5 @@ jobs:
         run: |
           set +e
           rm -rf -- source
-          rm -f -- "$RUNNER_TEMP"/radha-rust-install.log "$RUNNER_TEMP"/radha-fmt.log "$RUNNER_TEMP"/radha-build.log "$RUNNER_TEMP"/radha-test.log "$RUNNER_TEMP"/radha-clippy.log "$RUNNER_TEMP"/radha-test-list.log "$RUNNER_TEMP"/radha-suite-stress.log "$RUNNER_TEMP"/radha-repro.log
+          rm -f -- "$RUNNER_TEMP"/radha-rust-install.log "$RUNNER_TEMP"/radha-fmt.log "$RUNNER_TEMP"/radha-build.log "$RUNNER_TEMP"/radha-test.log "$RUNNER_TEMP"/radha-clippy.log "$RUNNER_TEMP"/radha-test-list.log "$RUNNER_TEMP"/radha-suite-stress.log "$RUNNER_TEMP"/radha-target-suite.log "$RUNNER_TEMP"/radha-repro.log
           echo 'RADHA_EPHEMERAL_CLEANUP=attempted'
