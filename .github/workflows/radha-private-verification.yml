@@ -11,7 +11,7 @@ on:
         description: "Exact 40-character commit SHA from the private RADHA PR"
         required: true
         type: string
-        default: "e5a7b3b38c8db6077cd97d71fb9faa3f807cdfd8"
+        default: "f6e7aa221184730c9cfc2f64cfe5c4483f33ae08"
 
 permissions:
   contents: read
@@ -29,7 +29,7 @@ jobs:
       CARGO_TERM_COLOR: never
       RUST_BACKTRACE: "0"
       GIT_TERMINAL_PROMPT: "0"
-      TARGET_SHA: ${{ github.event.inputs.revision || 'e5a7b3b38c8db6077cd97d71fb9faa3f807cdfd8' }}
+      TARGET_SHA: ${{ github.event.inputs.revision || 'f6e7aa221184730c9cfc2f64cfe5c4483f33ae08' }}
     steps:
       - name: Validate revision and private access configuration
         env:
