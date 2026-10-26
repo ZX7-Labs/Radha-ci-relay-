@@ -212,6 +212,34 @@ jobs:
           done
           echo 'RADHA_TEST_STRESS=PASS_12'
 
+      - name: Repeat complete workspace tests to detect intermittent failures
+        working-directory: source/invent_radha
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t indexed_tests < <(sed -nE 's/^(.+): test$/\1/p' "$RUNNER_TEMP/radha-test-list.log")
+          for attempt in 1 2 3 4; do
+            if cargo +1.98.1 test --workspace --all-targets --locked > "$RUNNER_TEMP/radha-suite-stress.log" 2>&1; then
+              :
+            else
+              echo 'RADHA_SUITE_STRESS=FAIL'
+              echo "RADHA_SUITE_STRESS_ATTEMPT=$attempt"
+              mapfile -t failed_names < <(sed -nE 's/^test (.+) \.\.\. FAILED$/\1/p' "$RUNNER_TEMP/radha-suite-stress.log")
+              printf 'RADHA_SUITE_STRESS_FAILURES=%d\n' "${#failed_names[@]}"
+              for failed in "${failed_names[@]}"; do
+                for i in "${!indexed_tests[@]}"; do
+                  if [[ "${indexed_tests[$i]}" == "$failed" ]]; then
+                    printf 'RADHA_SUITE_STRESS_FAIL_INDEX=%d\n' "$((i + 1))"
+                    break
+                  fi
+                done
+              done
+              sed -nE '/panicked at / {s/^.*:([0-9]+):([0-9]+):?$/RADHA_PANIC_LOCATION=\1:\2/p;}' "$RUNNER_TEMP/radha-suite-stress.log" | head -3 || true
+              exit 1
+            fi
+          done
+          echo 'RADHA_SUITE_STRESS=PASS_4'
+
       - name: Check all-target Clippy with warnings denied
         working-directory: source/invent_radha
         shell: bash
@@ -245,5 +273,5 @@ jobs:
         run: |
           set +e
           rm -rf -- source
-          rm -f -- "$RUNNER_TEMP"/radha-rust-install.log "$RUNNER_TEMP"/radha-fmt.log "$RUNNER_TEMP"/radha-build.log "$RUNNER_TEMP"/radha-test.log "$RUNNER_TEMP"/radha-clippy.log "$RUNNER_TEMP"/radha-test-list.log
+          rm -f -- "$RUNNER_TEMP"/radha-rust-install.log "$RUNNER_TEMP"/radha-fmt.log "$RUNNER_TEMP"/radha-build.log "$RUNNER_TEMP"/radha-test.log "$RUNNER_TEMP"/radha-clippy.log "$RUNNER_TEMP"/radha-test-list.log "$RUNNER_TEMP"/radha-suite-stress.log "$RUNNER_TEMP"/radha-repro.log
           echo 'RADHA_EPHEMERAL_CLEANUP=attempted'
