@@ -1,0 +1,152 @@
+name: RADHA private revision verification
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/radha-private-verification.yml
+  workflow_dispatch:
+    inputs:
+      revision:
+        description: "Exact 40-character commit SHA from the private RADHA PR"
+        required: true
+        type: string
+        default: "da7473fe751f82be08cacddc9b76a957624889d7"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: radha-private-revision-verification
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    name: Verify pinned private source
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      CARGO_TERM_COLOR: never
+      RUST_BACKTRACE: "0"
+      GIT_TERMINAL_PROMPT: "0"
+      TARGET_SHA: ${{ github.event.inputs.revision || 'da7473fe751f82be08cacddc9b76a957624889d7' }}
+    steps:
+      - name: Validate revision and private access configuration
+        env:
+          PRIVATE_READ_TOKEN: ${{ secrets.RADHA_PRIVATE_READ_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ ! "$TARGET_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+            echo 'RADHA_REVISION_INPUT=INVALID'
+            exit 1
+          fi
+          if [[ -z "$PRIVATE_READ_TOKEN" ]]; then
+            echo 'RADHA_PRIVATE_ACCESS=MISSING_SECRET'
+            exit 1
+          fi
+          echo 'RADHA_CONFIGURATION=PASS'
+
+      - name: Check out exact private commit without persisting token
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2, SHA-pinned
+        with:
+          repository: ZX7-Labs/invention-radha
+          ref: ${{ env.TARGET_SHA }}
+          token: ${{ secrets.RADHA_PRIVATE_READ_TOKEN }}
+          persist-credentials: false
+          fetch-depth: 1
+          show-progress: false
+          path: source
+
+      - name: Verify source commit identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          actual="$(git -C source rev-parse HEAD)"
+          if [[ "$actual" != "$TARGET_SHA" ]]; then
+            echo 'RADHA_REVISION_BINDING=MISMATCH'
+            exit 1
+          fi
+          if [[ ! -f source/invent_radha/Cargo.lock ]]; then
+            echo 'RADHA_WORKSPACE=NOT_FOUND'
+            exit 1
+          fi
+          digest="$(printf '%s' "$actual" | sha256sum | cut -d' ' -f1)"
+          echo 'RADHA_REVISION_BINDING=match'
+          echo "RADHA_PRIVATE_SHA256=$digest"
+
+      - name: Install pinned Rust toolchain
+        shell: bash
+        run: |
+          set -euo pipefail
+          if rustup toolchain install 1.98.1 --profile minimal -c rustfmt -c clippy > "$RUNNER_TEMP/radha-rust-install.log" 2>&1; then
+            echo 'RADHA_RUST_TOOLCHAIN=PASS'
+          else
+            echo 'RADHA_RUST_TOOLCHAIN=FAIL'
+            exit 1
+          fi
+
+      - name: Check Rust formatting
+        working-directory: source/invent_radha
+        shell: bash
+        run: |
+          set -euo pipefail
+          if cargo +1.98.1 fmt --all -- --check > "$RUNNER_TEMP/radha-fmt.log" 2>&1; then
+            echo 'RADHA_FORMAT=PASS'
+          else
+            echo 'RADHA_FORMAT=FAIL'
+            exit 1
+          fi
+
+      - name: Compile full Rust workspace
+        working-directory: source/invent_radha
+        shell: bash
+        run: |
+          set -euo pipefail
+          if cargo +1.98.1 build --workspace --all-targets --locked > "$RUNNER_TEMP/radha-build.log" 2>&1; then
+            echo 'RADHA_COMPILE=PASS'
+          else
+            echo 'RADHA_COMPILE=FAIL'
+            exit 1
+          fi
+
+      - name: Run all Rust workspace tests
+        working-directory: source/invent_radha
+        shell: bash
+        run: |
+          set -euo pipefail
+          if cargo +1.98.1 test --workspace --all-targets --locked > "$RUNNER_TEMP/radha-test.log" 2>&1; then
+            echo 'RADHA_TESTS=PASS'
+          else
+            echo 'RADHA_TESTS=FAIL'
+            exit 1
+          fi
+
+      - name: Check all-target Clippy with warnings denied
+        working-directory: source/invent_radha
+        shell: bash
+        run: |
+          set -euo pipefail
+          if cargo +1.98.1 clippy --workspace --all-targets --locked -- -D warnings > "$RUNNER_TEMP/radha-clippy.log" 2>&1; then
+            echo 'RADHA_CLIPPY=PASS'
+          else
+            echo 'RADHA_CLIPPY=FAIL'
+            exit 1
+          fi
+
+      - name: Mark exact private revision verified
+        shell: bash
+        run: |
+          set -euo pipefail
+          digest="$(printf '%s' "$TARGET_SHA" | sha256sum | cut -d' ' -f1)"
+          echo "RADHA_PRIVATE_SHA256=$digest"
+          echo 'RADHA_VERIFY_RESULT=PASS'
+
+      - name: Clean private source and temporary diagnostics
+        if: always()
+        shell: bash
+        run: |
+          set +e
+          rm -rf -- source
+          rm -f -- "$RUNNER_TEMP"/radha-rust-install.log "$RUNNER_TEMP"/radha-fmt.log "$RUNNER_TEMP"/radha-build.log "$RUNNER_TEMP"/radha-test.log "$RUNNER_TEMP"/radha-clippy.log
+          echo 'RADHA_EPHEMERAL_CLEANUP=attempted'
