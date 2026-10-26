@@ -99,15 +99,15 @@ jobs:
             echo 'RADHA_FORMAT_OK=0' >> "$GITHUB_ENV"
             # Emit only numeric path indexes and hunk locations; never print source.
             if cargo +1.98.1 fmt --all > "$RUNNER_TEMP/radha-fmt-diagnostic.log" 2>&1; then
-              mapfile -t tracked < <(git ls-files '*.rs' | LC_ALL=C sort)
-              mapfile -t changed < <(git diff --name-only -- '*.rs' | LC_ALL=C sort)
+              mapfile -t tracked < <(git -C .. ls-files '*.rs' | LC_ALL=C sort)
+              mapfile -t changed < <(git -C .. diff --name-only -- '*.rs' | LC_ALL=C sort)
               printf 'RADHA_FORMAT_FILES_NEEDING_CHANGES=%d\n' "${#changed[@]}"
               for candidate in "${changed[@]}"; do
                 for i in "${!tracked[@]}"; do
                   if [[ "${tracked[$i]}" == "$candidate" ]]; then
                     index=$((i + 1))
                     printf 'RADHA_FMT_FILE_INDEX=%d\n' "$index"
-                    git diff --unified=0 -- "$candidate" |
+                    git -C .. diff --unified=0 -- "$candidate" |
                       awk -v index="$index" '/^@@ / {
                         split($3, range, ",")
                         sub(/^\+/, "", range[1])
