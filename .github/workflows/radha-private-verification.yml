@@ -163,6 +163,25 @@ jobs:
             fi
           fi
 
+      - name: Locate numeric test suite for investigation
+        working-directory: source/invent_radha
+        shell: bash
+        run: |
+          set -euo pipefail
+          if cargo +1.98.1 test --workspace --all-targets --locked -- --list > "$RUNNER_TEMP/radha-test-list.log" 2>&1; then
+            awk '
+              /^[[:space:]]*Running / { suite++; local_index=0; }
+              /: test$/ {
+                global_index++;
+                local_index++;
+                if (global_index == 91) {
+                  printf "RADHA_TEST_91_SUITE_INDEX=%d\\n", suite;
+                  printf "RADHA_TEST_91_LOCAL_INDEX=%d\\n", local_index;
+                }
+              }
+            ' "$RUNNER_TEMP/radha-test-list.log"
+          fi
+
       - name: Check all-target Clippy with warnings denied
         working-directory: source/invent_radha
         shell: bash
