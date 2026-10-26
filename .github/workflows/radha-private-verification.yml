@@ -147,6 +147,20 @@ jobs:
           else
             echo 'RADHA_TESTS=FAIL'
             echo 'RADHA_TESTS_OK=0' >> "$GITHUB_ENV"
+            # Map failing names to numeric indices without publishing identifiers.
+            if cargo +1.98.1 test --workspace --all-targets --locked -- --list > "$RUNNER_TEMP/radha-test-list.log" 2>&1; then
+              mapfile -t test_names < <(sed -nE 's/^(.+): test$/\1/p' "$RUNNER_TEMP/radha-test-list.log")
+              mapfile -t failed_names < <(sed -nE 's/^test (.+) \.\.\. FAILED$/\1/p' "$RUNNER_TEMP/radha-test.log")
+              printf 'RADHA_FAILED_TEST_COUNT=%d\n' "${#failed_names[@]}"
+              for failed in "${failed_names[@]}"; do
+                for i in "${!test_names[@]}"; do
+                  if [[ "${test_names[$i]}" == "$failed" ]]; then
+                    printf 'RADHA_FAILED_TEST_INDEX=%d\n' "$((i + 1))"
+                    break
+                  fi
+                done
+              done
+            fi
           fi
 
       - name: Check all-target Clippy with warnings denied
@@ -182,5 +196,5 @@ jobs:
         run: |
           set +e
           rm -rf -- source
-          rm -f -- "$RUNNER_TEMP"/radha-rust-install.log "$RUNNER_TEMP"/radha-fmt.log "$RUNNER_TEMP"/radha-build.log "$RUNNER_TEMP"/radha-test.log "$RUNNER_TEMP"/radha-clippy.log
+          rm -f -- "$RUNNER_TEMP"/radha-rust-install.log "$RUNNER_TEMP"/radha-fmt.log "$RUNNER_TEMP"/radha-build.log "$RUNNER_TEMP"/radha-test.log "$RUNNER_TEMP"/radha-clippy.log "$RUNNER_TEMP"/radha-test-list.log
           echo 'RADHA_EPHEMERAL_CLEANUP=attempted'
