@@ -11,7 +11,7 @@ on:
         description: "Exact 40-character commit SHA from the private RADHA PR"
         required: true
         type: string
-        default: "f6e7aa221184730c9cfc2f64cfe5c4483f33ae08"
+        default: "1b856185f286d1716fe440371cf4c5ddbea453e1"
 
 permissions:
   contents: read
@@ -29,7 +29,7 @@ jobs:
       CARGO_TERM_COLOR: never
       RUST_BACKTRACE: "0"
       GIT_TERMINAL_PROMPT: "0"
-      TARGET_SHA: ${{ github.event.inputs.revision || 'f6e7aa221184730c9cfc2f64cfe5c4483f33ae08' }}
+      TARGET_SHA: ${{ github.event.inputs.revision || '1b856185f286d1716fe440371cf4c5ddbea453e1' }}
     steps:
       - name: Validate revision and private access configuration
         env:
@@ -230,6 +230,8 @@ jobs:
             else
               echo 'RADHA_SUPERVISOR_SUITE_STRESS=FAIL'
               echo "RADHA_SUPERVISOR_SUITE_ATTEMPT=$attempt"
+              grep -Eo 'fork diagnostic: [a-z_]+' "$RUNNER_TEMP/radha-target-suite.log" |
+                LC_ALL=C sort -u | sed 's/^fork diagnostic: /RADHA_FORK_DIAGNOSTIC=/' || true
               sed -nE '/panicked at / {s/^.*:([0-9]+):([0-9]+):?$/RADHA_PANIC_LOCATION=\1:\2/p;}' "$RUNNER_TEMP/radha-target-suite.log" | head -3 || true
               exit 1
             fi
