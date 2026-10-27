@@ -12,7 +12,7 @@ on:
         description: "Exact 40-character commit SHA from the private RADHA PR"
         required: true
         type: string
-        default: "3cc6bb0c2206a45e502f9811c7e7d3de8e843756"
+        default: "ff9c93a88194766eb8ebc1672dc48615743a8ade"
 
 permissions:
   contents: read
@@ -30,7 +30,7 @@ jobs:
       CARGO_TERM_COLOR: never
       RUST_BACKTRACE: "0"
       GIT_TERMINAL_PROMPT: "0"
-      TARGET_SHA: ${{ github.event.inputs.revision || '3cc6bb0c2206a45e502f9811c7e7d3de8e843756' }}
+      TARGET_SHA: ${{ github.event.inputs.revision || 'ff9c93a88194766eb8ebc1672dc48615743a8ade' }}
     steps:
       - name: Validate revision and private access configuration
         env:
@@ -90,6 +90,7 @@ jobs:
           bash -n tests/native-compiler-smoke.sh
           bash -n scripts/nvidia-onboard.sh
           bash -n scripts/nvidia-diagnose.sh
+          bash -n scripts/provider-alternatives.sh
           bash -n tests/nvidia-onboard-smoke.sh
           if bash tests/nvidia-onboard-smoke.sh > "$RUNNER_TEMP/radha-nvidia-onboard.log" 2>&1; then
             echo 'RADHA_NVIDIA_ONBOARD_SMOKE=PASS'
