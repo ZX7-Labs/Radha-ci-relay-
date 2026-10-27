@@ -221,7 +221,21 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          suite_entry="$(awk '/^[[:space:]]*Running / { suite++; if (suite == 21) { print $2; exit; } }' "$RUNNER_TEMP/radha-test-list.log")"
+          expected_digest="61179129c81368cea252fbb30814e810d695b39673d8c63e9546d95532358052"
+          mapfile -t indexed_tests < <(sed -nE 's/^(.+): test$/\1/p' "$RUNNER_TEMP/radha-test-list.log")
+          selected=""
+          for candidate in "${indexed_tests[@]}"; do
+            observed_digest="$(printf '%s' "$candidate" | sha256sum | cut -d' ' -f1)"
+            if [[ "$observed_digest" == "$expected_digest" ]]; then
+              selected="$candidate"
+              break
+            fi
+          done
+          if [[ -z "$selected" ]]; then
+            echo 'RADHA_SUITE_TARGET=IDENTITY_MISSING'
+            exit 1
+          fi
+          suite_entry="$(awk -v wanted="$selected" '$1 == "Running" {suite=$2} $0 == wanted ": test" {print suite; exit}' "$RUNNER_TEMP/radha-test-list.log")"
           if [[ ! "$suite_entry" =~ ^tests/[a-zA-Z0-9_]+[.]rs$ ]]; then
             echo 'RADHA_SUITE_TARGET=INVALID'
             exit 1
