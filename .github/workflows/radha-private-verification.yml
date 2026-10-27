@@ -1,5 +1,5 @@
 name: RADHA private revision verification
-# Repeat exact candidate verification after intermittent pre-existing supervisor stress failure.
+# Verify local Research provider preflight prevents model-only PASS hiding a bad key.
 
 on:
   push:
@@ -12,7 +12,7 @@ on:
         description: "Exact 40-character commit SHA from the private RADHA PR"
         required: true
         type: string
-        default: "59cc58f42ef5c2886ac979e4d4ef2478adc73d6f"
+        default: "63e071320447d80551d11783884bbe957323ccd1"
 
 permissions:
   contents: read
@@ -30,7 +30,7 @@ jobs:
       CARGO_TERM_COLOR: never
       RUST_BACKTRACE: "0"
       GIT_TERMINAL_PROMPT: "0"
-      TARGET_SHA: ${{ github.event.inputs.revision || '59cc58f42ef5c2886ac979e4d4ef2478adc73d6f' }}
+      TARGET_SHA: ${{ github.event.inputs.revision || '63e071320447d80551d11783884bbe957323ccd1' }}
     steps:
       - name: Validate revision and private access configuration
         env:
