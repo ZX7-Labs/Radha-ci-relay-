@@ -11,7 +11,7 @@ on:
         description: "Exact 40-character commit SHA from the private RADHA PR"
         required: true
         type: string
-        default: "28b11c3ad3490e1f191a4ab99cc476000652d67b"
+        default: "6cd56800e8d29a974d212f08f9fce22d3d9851b8"
 
 permissions:
   contents: read
@@ -29,7 +29,7 @@ jobs:
       CARGO_TERM_COLOR: never
       RUST_BACKTRACE: "0"
       GIT_TERMINAL_PROMPT: "0"
-      TARGET_SHA: ${{ github.event.inputs.revision || '28b11c3ad3490e1f191a4ab99cc476000652d67b' }}
+      TARGET_SHA: ${{ github.event.inputs.revision || '6cd56800e8d29a974d212f08f9fce22d3d9851b8' }}
     steps:
       - name: Validate revision and private access configuration
         env:
@@ -74,6 +74,22 @@ jobs:
           digest="$(printf '%s' "$actual" | sha256sum | cut -d' ' -f1)"
           echo 'RADHA_REVISION_BINDING=match'
           echo "RADHA_PRIVATE_SHA256=$digest"
+
+      - name: Verify private Termux launcher and credential setup contracts
+        shell: bash
+        working-directory: source
+        run: |
+          set -euo pipefail
+          bash -n radha
+          bash -n scripts/radha.sh
+          bash -n scripts/provider-setup.sh
+          bash -n tests/termux-dashboard-smoke.sh
+          if bash tests/termux-dashboard-smoke.sh > "$RUNNER_TEMP/radha-dashboard.log" 2>&1; then
+            echo 'RADHA_DASHBOARD_SMOKE=PASS'
+          else
+            echo 'RADHA_DASHBOARD_SMOKE=FAIL'
+            exit 1
+          fi
 
       - name: Install pinned Rust toolchain
         shell: bash
@@ -319,5 +335,5 @@ jobs:
         run: |
           set +e
           rm -rf -- source
-          rm -f -- "$RUNNER_TEMP"/radha-rust-install.log "$RUNNER_TEMP"/radha-fmt.log "$RUNNER_TEMP"/radha-build.log "$RUNNER_TEMP"/radha-test.log "$RUNNER_TEMP"/radha-clippy.log "$RUNNER_TEMP"/radha-test-list.log "$RUNNER_TEMP"/radha-suite-stress.log "$RUNNER_TEMP"/radha-target-suite.log "$RUNNER_TEMP"/radha-repro.log
+          rm -f -- "$RUNNER_TEMP"/radha-dashboard.log "$RUNNER_TEMP"/radha-rust-install.log "$RUNNER_TEMP"/radha-fmt.log "$RUNNER_TEMP"/radha-build.log "$RUNNER_TEMP"/radha-test.log "$RUNNER_TEMP"/radha-clippy.log "$RUNNER_TEMP"/radha-test-list.log "$RUNNER_TEMP"/radha-suite-stress.log "$RUNNER_TEMP"/radha-target-suite.log "$RUNNER_TEMP"/radha-repro.log
           echo 'RADHA_EPHEMERAL_CLEANUP=attempted'
