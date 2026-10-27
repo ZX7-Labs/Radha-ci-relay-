@@ -1,4 +1,5 @@
 name: RADHA private revision verification
+# Repeat exact candidate verification after intermittent pre-existing supervisor stress failure.
 
 on:
   push:
