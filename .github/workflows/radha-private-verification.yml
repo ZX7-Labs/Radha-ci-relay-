@@ -11,7 +11,7 @@ on:
         description: "Exact 40-character commit SHA from the private RADHA PR"
         required: true
         type: string
-        default: "2a1d10233b595ea0915f38fbea6aa21f817b596e"
+        default: "f386639f0390afd8f0cbdc8ef12272698b057d34"
 
 permissions:
   contents: read
@@ -29,7 +29,7 @@ jobs:
       CARGO_TERM_COLOR: never
       RUST_BACKTRACE: "0"
       GIT_TERMINAL_PROMPT: "0"
-      TARGET_SHA: ${{ github.event.inputs.revision || '2a1d10233b595ea0915f38fbea6aa21f817b596e' }}
+      TARGET_SHA: ${{ github.event.inputs.revision || 'f386639f0390afd8f0cbdc8ef12272698b057d34' }}
     steps:
       - name: Validate revision and private access configuration
         env:
@@ -84,6 +84,15 @@ jobs:
           bash -n scripts/radha.sh
           bash -n scripts/provider-setup.sh
           bash -n tests/termux-dashboard-smoke.sh
+          bash -n scripts/native-build-env.sh
+          bash -n scripts/native-clang-driver.sh
+          bash -n tests/native-compiler-smoke.sh
+          if bash tests/native-compiler-smoke.sh > "$RUNNER_TEMP/radha-native-compiler.log" 2>&1; then
+            echo 'RADHA_NATIVE_COMPILER_SMOKE=PASS'
+          else
+            echo 'RADHA_NATIVE_COMPILER_SMOKE=FAIL'
+            exit 1
+          fi
           if bash tests/termux-dashboard-smoke.sh > "$RUNNER_TEMP/radha-dashboard.log" 2>&1; then
             echo 'RADHA_DASHBOARD_SMOKE=PASS'
           else
@@ -335,5 +344,5 @@ jobs:
         run: |
           set +e
           rm -rf -- source
-          rm -f -- "$RUNNER_TEMP"/radha-dashboard.log "$RUNNER_TEMP"/radha-rust-install.log "$RUNNER_TEMP"/radha-fmt.log "$RUNNER_TEMP"/radha-build.log "$RUNNER_TEMP"/radha-test.log "$RUNNER_TEMP"/radha-clippy.log "$RUNNER_TEMP"/radha-test-list.log "$RUNNER_TEMP"/radha-suite-stress.log "$RUNNER_TEMP"/radha-target-suite.log "$RUNNER_TEMP"/radha-repro.log
+          rm -f -- "$RUNNER_TEMP"/radha-native-compiler.log "$RUNNER_TEMP"/radha-dashboard.log "$RUNNER_TEMP"/radha-rust-install.log "$RUNNER_TEMP"/radha-fmt.log "$RUNNER_TEMP"/radha-build.log "$RUNNER_TEMP"/radha-test.log "$RUNNER_TEMP"/radha-clippy.log "$RUNNER_TEMP"/radha-test-list.log "$RUNNER_TEMP"/radha-suite-stress.log "$RUNNER_TEMP"/radha-target-suite.log "$RUNNER_TEMP"/radha-repro.log
           echo 'RADHA_EPHEMERAL_CLEANUP=attempted'
